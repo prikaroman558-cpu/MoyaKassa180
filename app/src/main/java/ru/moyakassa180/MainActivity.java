@@ -4,7 +4,9 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.WebChromeClient;
 import android.webkit.JavascriptInterface;
+import android.webkit.WebSettings;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
@@ -24,8 +26,14 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
 
         webView = new WebView(this);
-        webView.getSettings().setJavaScriptEnabled(true);
+
+        WebSettings settings = webView.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+
         webView.setWebViewClient(new WebViewClient());
+        webView.setWebChromeClient(new WebChromeClient());
         webView.addJavascriptInterface(new PrinterBridge(), "AndroidPrinter");
 
         setContentView(webView);
@@ -44,7 +52,6 @@ public class MainActivity extends Activity {
     public class PrinterBridge {
         @JavascriptInterface
         public String printReceipt(final String receipt) {
-
             if (Build.VERSION.SDK_INT >= 31 &&
                 checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -53,14 +60,11 @@ public class MainActivity extends Activity {
 
             new Thread(() -> {
                 BluetoothSocket socket = null;
-
                 try {
                     BluetoothAdapter adapter =
                         BluetoothAdapter.getDefaultAdapter();
 
-                    if (adapter == null || !adapter.isEnabled()) {
-                        return;
-                    }
+                    if (adapter == null || !adapter.isEnabled()) return;
 
                     BluetoothDevice device =
                         adapter.getRemoteDevice("DD:12:29:35:56:D3");
@@ -83,12 +87,11 @@ public class MainActivity extends Activity {
                 } finally {
                     try {
                         if (socket != null) socket.close();
-                    } catch (Exception ignored) {
-                    }
+                    } catch (Exception ignored) {}
                 }
             }).start();
 
-            return "Продажа сохранена. Пробую подключиться к принтеру";
+            return "Отправка чека запущена";
         }
     }
 }
