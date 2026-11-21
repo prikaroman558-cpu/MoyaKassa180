@@ -6,65 +6,103 @@
 <title>Моя касса 180</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;padding:12px;background:#e8e8e8;font-family:Arial,sans-serif}
-.app{max-width:440px;margin:auto;background:#fff;padding:12px;border:1px solid #999}
+body{margin:0;background:#e8e8e8;font-family:Arial,sans-serif}
+.app{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;justify-content:flex-end;padding:8px 4px 4px;max-width:440px;margin:auto;background:white}
 h2{text-align:center;margin:5px}
 .display{background:#d9ead3;padding:18px;text-align:right;font-size:32px;border:2px solid #555;margin:12px 0;min-height:65px}
 .keys{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
-button{height:58px;font-size:18px;border:1px solid #555;border-radius:2px;background:#ddd;color:#111}
+button{min-height:52px;font-size:17px;border:1px solid #555;border-radius:2px;background:#ddd;color:#111}
 button:active{background:#aaa}
 .total{background:#8fc68f;font-weight:bold}
 .sub{background:#b8c9df}
 .num{background:#f5f5f5}
-.receipt{margin-top:15px;border:1px dashed #555;padding:12px;font-family:monospace;white-space:pre-wrap;font-size:13px}
-html,body{min-height:100%;margin:0}
-body{min-height:100vh;display:flex;flex-direction:column;justify-content:flex-end}
-body>*{margin-top:auto}
-.app{height:100vh;min-height:100dvh;display:flex;flex-direction:column;justify-content:flex-end;padding:0 4px 4px;box-sizing:border-box}
+.reportButton{width:100%;margin-top:7px;background:#b8c9df}
+.receipt{margin-top:12px;border:1px dashed #555;padding:10px;font-family:monospace;white-space:pre-wrap;font-size:13px}
+#report{display:none;margin-top:12px;padding:10px;border:1px solid #555;background:#f5f5f5}
+.reportLine{border-bottom:1px solid #ccc;padding:6px 0;font-family:monospace;font-size:13px}
+.reportActions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
 </style>
 </head>
 <body>
 <div class="app">
 <h2>КАССА 180</h2>
 <div id="display" class="display">0</div>
+
 <div class="keys">
 <button onclick="clearAll()">C</button>
 <button onclick="operator('/')">÷</button>
 <button onclick="operator('*')">×</button>
 <button class="sub" onclick="subtotal()">ПОДЫТОГ</button>
 <button class="total" onclick="finish()">ИТОГ</button>
+
 <button class="num" onclick="digit('7')">7</button>
 <button class="num" onclick="digit('8')">8</button>
 <button class="num" onclick="digit('9')">9</button>
 <button onclick="operator('-')">−</button>
 <button onclick="operator('+')">+</button>
+
 <button class="num" onclick="digit('4')">4</button>
 <button class="num" onclick="digit('5')">5</button>
 <button class="num" onclick="digit('6')">6</button>
 <button class="num" onclick="digit('00')">00</button>
 <button onclick="backspace()">←</button>
+
 <button class="num" onclick="digit('1')">1</button>
 <button class="num" onclick="digit('2')">2</button>
 <button class="num" onclick="digit('3')">3</button>
 <button class="num" onclick="digit('0')">0</button>
 <button class="num" onclick="digit('.')">.</button>
 </div>
+
+<button class="reportButton" onclick="showReport()">ОТЧЁТ</button>
+
 <div id="receipt" class="receipt">НЕФИСКАЛЬНЫЙ ЧЕК</div>
+
+<div id="report">
+<h3>ОТЧЁТ ПО СМЕНЕ</h3>
+<div id="reportSummary"></div>
+<div id="reportList"></div>
+<div class="reportActions">
+<button onclick="closeShift()">ЗАКРЫТЬ СМЕНУ</button>
+<button onclick="hideReport()">НАЗАД</button>
 </div>
+</div>
+</div>
+
 <script>
 let current='0', stored=null, op=null, fresh=false;
+
 let sales=JSON.parse(localStorage.getItem('sales180')||'[]');
 
-function show(){document.getElementById('display').textContent=current}
+let shiftSales=JSON.parse(localStorage.getItem('shiftSales180')||'null');
+if(shiftSales===null){
+ shiftSales=sales.slice();
+ localStorage.setItem('shiftSales180',JSON.stringify(shiftSales));
+}
+
+let shiftReports=JSON.parse(localStorage.getItem('shiftReports180')||'[]');
+
+function show(){
+ document.getElementById('display').textContent=current;
+}
+
 function digit(v){
  if(fresh){current='0';fresh=false}
- if(v==='.' && current.includes('.'))return;
+ if(v==='.'&&current.includes('.'))return;
  if(current==='0'&&v!=='.')current=v;
  else current+=v;
  show();
 }
-function clearAll(){current='0';stored=null;op=null;fresh=false;show()}
-function backspace(){current=current.length>1?current.slice(0,-1):'0';show()}
+
+function clearAll(){
+ current='0';stored=null;op=null;fresh=false;show();
+}
+
+function backspace(){
+ current=current.length>1?current.slice(0,-1):'0';
+ show();
+}
+
 function calculate(){
  if(stored===null||!op)return;
  let a=stored,b=Number(current),r=0;
@@ -75,21 +113,27 @@ function calculate(){
  current=String(Math.round(r*100)/100);
  stored=null;op=null;fresh=true;show();
 }
+
 function operator(v){
  if(op)calculate();
  stored=Number(current);op=v;fresh=true;
 }
-function subtotal(){if(op)calculate()}
+
+function subtotal(){
+ if(op)calculate();
+}
 
 function finish(){
  if(op)calculate();
  let amount=Number(current);
  if(amount<=0){alert('Введите сумму');return}
+
  let now=new Date();
  let number=sales.length+1;
  let date=now.toLocaleDateString('ru-RU');
  let time=now.toLocaleTimeString('ru-RU');
- let receipt=
+
+ let receiptText=
  '       НЕФИСКАЛЬНЫЙ ЧЕК\n'+
  '             СК1\n'+
  '----------------------------\n'+
@@ -99,23 +143,79 @@ function finish(){
  'ИТОГ: '+amount.toFixed(2)+'\n'+
  '----------------------------\n';
 
- sales.push({number,amount,date,time});
+ let sale={number,amount,date,time};
+ sales.push(sale);
+ shiftSales.push(sale);
+
  localStorage.setItem('sales180',JSON.stringify(sales));
- document.getElementById('receipt').textContent=receipt;
+ localStorage.setItem('shiftSales180',JSON.stringify(shiftSales));
+
+ document.getElementById('receipt').textContent=receiptText;
 
  let message='Продажа сохранена';
  if(window.AndroidPrinter){
-   try{
-     message += '. '+window.AndroidPrinter.printReceipt(receipt);
-   }catch(e){
-     message += '. Не удалось обратиться к принтеру';
-   }
- }else{
-   message += '. Печать доступна в приложении Android';
+  try{
+   message += '. '+window.AndroidPrinter.printReceipt(receiptText);
+  }catch(e){
+   message += '. Печать не выполнена';
+  }
  }
  alert(message);
 
  current='0';show();stored=null;op=null;fresh=false;
+}
+
+function showReport(){
+ let total=shiftSales.reduce((sum,s)=>sum+Number(s.amount),0);
+ document.getElementById('reportSummary').innerHTML=
+  '<p>ЧЕКОВ: <b>'+shiftSales.length+'</b></p>'+
+  '<p>ОБЩАЯ СУММА: <b>'+total.toFixed(2)+'</b></p>';
+
+ let list=document.getElementById('reportList');
+ list.innerHTML='<h4>СПИСОК ПРОДАЖ</h4>';
+
+ if(shiftSales.length===0){
+  list.innerHTML+='<p>Продаж пока нет</p>';
+ }else{
+  shiftSales.forEach(s=>{
+   let line=document.createElement('div');
+   line.className='reportLine';
+   line.textContent='Чек №'+s.number+' | '+s.date+' '+s.time+' | '+Number(s.amount).toFixed(2);
+   list.appendChild(line);
+  });
+ }
+
+ document.getElementById('report').style.display='block';
+}
+
+function hideReport(){
+ document.getElementById('report').style.display='none';
+}
+
+function closeShift(){
+ if(shiftSales.length===0){
+  alert('В смене нет продаж');
+  return;
+ }
+
+ let total=shiftSales.reduce((sum,s)=>sum+Number(s.amount),0);
+
+ if(!confirm('Закрыть смену? Сумма: '+total.toFixed(2)))return;
+
+ shiftReports.push({
+  closedAt:new Date().toLocaleString('ru-RU'),
+  count:shiftSales.length,
+  total:total,
+  sales:shiftSales
+ });
+
+ localStorage.setItem('shiftReports180',JSON.stringify(shiftReports));
+
+ shiftSales=[];
+ localStorage.setItem('shiftSales180',JSON.stringify(shiftSales));
+
+ alert('Смена закрыта. История продаж сохранена.');
+ showReport();
 }
 </script>
 </body>
